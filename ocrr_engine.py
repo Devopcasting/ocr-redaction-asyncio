@@ -1,5 +1,4 @@
 import asyncio
-import queue
 import os
 import shutil
 import configparser
@@ -7,6 +6,7 @@ from handlers.file_monitor import FileMonitor
 from handlers.identify_card import IdentifyCard
 from handlers.pan_card_p1 import PanCardPattern1Handler
 from handlers.pan_card_p2 import PanCardPattern2Handler
+from handlers.aadhaar_card_front import AadhaarCardFrontHandler
 from helpers.process_images import ProcessJPEGImages
 from ocrr_logging.ocrrlogging import OCRREngineLogging
 
@@ -35,7 +35,7 @@ async def identify_image(q):
         if file_path is None:
             break
         # start: identify image
-        identify_card_obj = IdentifyCard(file_path, pan_card_p1_folder_path, pan_card_p2_folder_path).identify()
+        identify_card_obj = IdentifyCard(file_path, pan_card_p1_folder_path, pan_card_p2_folder_path, aadhaar_card_front_folder_path).identify()
         if identify_card_obj:
             q.task_done()
         else:
@@ -77,6 +77,22 @@ async def write_xml_pan_card_p2(q):
             shutil.move(file_path, os.path.join(rejected_folder_path, file_name))
         await asyncio.sleep(1)
 
+# func: wrie xml data for aadhaar card front-side
+async def write_xml_aadhaar_card_front(q):
+    while True:
+        file_path = await q.get()
+        file_name = os.path.basename(file_path)
+        if file_path is None:
+            break
+        # start: writting aadhaar card front-side info
+        write_aadhaar_card_front_data = AadhaarCardFrontHandler(file_path, xml_folder_path, redacted_folder_path).aadhaarcard_front()
+        if write_aadhaar_card_front_data:
+            logger.info(f"Aadhaar card xml data is ready for {file_name}")
+            q.task_done()
+        else:
+            logger.error(f"AADERR001")
+        await asyncio.sleep(1)
+
 # func: main ocrr-engine
 async def start_ocrr_engine():
     # define Queues
@@ -84,12 +100,14 @@ async def start_ocrr_engine():
     processed_folder_q = asyncio.Queue()
     pan_card_p1_folder_q = asyncio.Queue()
     pan_card_p2_folder_q = asyncio.Queue()
+    aadhaar_card_front_folder_q = asyncio.Queue()
 
     #  monitor folders
     monitor_upload_folder = FileMonitor(upload_folder_q, upload_folder_path)
     monitor_processed_folder = FileMonitor(processed_folder_q, processed_folder_path)
     monitor_pan_card_p1_folder = FileMonitor(pan_card_p1_folder_q, pan_card_p1_folder_path)
     monitor_pan_card_p2_folder = FileMonitor(pan_card_p2_folder_q, pan_card_p2_folder_path)
+    monitor_aadhaar_card_front_folder = FileMonitor(aadhaar_card_front_folder_q, aadhaar_card_front_folder_path)
 
     # func: wrap process_images in a async
     async def async_process_image(q):
@@ -107,22 +125,29 @@ async def start_ocrr_engine():
     async def async_write_xml_pan_card_p2(q):
         await write_xml_pan_card_p2(q)
     
+    # func: wrap write_xml_aadhaar_card_front in a async
+    async def async_write_xml_aadhaar_card_front(q):
+        await write_xml_aadhaar_card_front(q)
+
     # tasks
     upload_folder_task = asyncio.create_task(monitor_upload_folder.monitor())
     process_folder_task = asyncio.create_task(monitor_processed_folder.monitor())
     pan_card_p1_folder_task = asyncio.create_task(monitor_pan_card_p1_folder.monitor())
     pan_card_p2_folder_task = asyncio.create_task(monitor_pan_card_p2_folder.monitor())
+    aadhaar_card_front_folder_task = asyncio.create_task(monitor_aadhaar_card_front_folder.monitor())
 
     process_image_task = asyncio.create_task(async_process_image(upload_folder_q))
     identify_image_task = asyncio.create_task(async_identify_image(processed_folder_q))
     write_xml_pan_card_p1_task = asyncio.create_task(async_write_xml_pan_card_p1(pan_card_p1_folder_q))
     write_xml_pan_card_p2_task = asyncio.create_task(async_write_xml_pan_card_p2(pan_card_p2_folder_q))
+    write_xml_aadhaar_card_front_task = asyncio.create_task(async_write_xml_aadhaar_card_front(aadhaar_card_front_folder_q))
     
     # gather all the tasks
     await asyncio.gather(upload_folder_task, process_image_task, 
                          process_folder_task, identify_image_task,
                           pan_card_p1_folder_task, write_xml_pan_card_p1_task,
-                           pan_card_p2_folder_task, write_xml_pan_card_p2_task )
+                           pan_card_p2_folder_task, write_xml_pan_card_p2_task,
+                            aadhaar_card_front_folder_task, write_xml_aadhaar_card_front_task )
 
 if __name__ == '__main__':
 
@@ -142,6 +167,8 @@ if __name__ == '__main__':
     rejected_folder_path = config['Path']['rejected']
     pan_card_p1_folder_path = config['Path']['pancardp1']
     pan_card_p2_folder_path = config['Path']['pancardp2']
+    aadhaar_card_front_folder_path = config['Path']['aadhaarcardfront']
+    aadhaar_card_back_folder_path = config['Path']['aadhaarcardback']
     redacted_folder_path = config['Path']['redacted']
     xml_folder_path = config['Path']['xml']
 

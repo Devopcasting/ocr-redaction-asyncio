@@ -8,7 +8,7 @@ class PanCardPattern2:
         self.image_path = image_path
        # Configure logger
         config = OCRREngineLogging()
-        logger = config.configure_logger()
+        self.logger = config.configure_logger()
 
     # func: search for coordinate of text below the matching text
     def search_coordinates_below_matching_text(self, matching_text: list) -> list:

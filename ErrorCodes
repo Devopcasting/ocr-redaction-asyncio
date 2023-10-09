@@ -1,0 +1,15 @@
+ERR001 = Processing of image failed
+ERR002 = Invalid image not a Pan card or Aadhaar card
+
+Pan Card Error Codes
+--------------------
+PANERR001 = Pan card information is not available
+PANERR002 = Pan card number not available
+PANERR003 = Pan card DOB not available
+
+Aadhaar Card Error Codes
+------------------------
+AADERR001 = Aadhaar card information is not available
+AADERR002 = Aadhaar card gender information is not available
+AADERR003 = Aadhaar card number is not available
+AADERR004 = Aadhaar card user name is not available

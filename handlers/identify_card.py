@@ -7,13 +7,14 @@ from helpers.identify_pan_card import IdentifyPanCard
 from helpers.identify_aadhaar_card import IdentifyAadhaarCard
 
 class IdentifyCard:
-    def __init__(self, image_path, pancard_p1, pancard_p2, aadhaarcard_front) -> None:
+    def __init__(self, image_path, pancard_p1, pancard_p2, aadhaarcard_front, eaadhaar) -> None:
         # Get paths
         self.image_path = image_path
         self.file_name = os.path.basename(self.image_path)
         self.pancard_p1_path = pancard_p1
         self.pancard_p2_path = pancard_p2
         self.aadhaarcard_front_path = aadhaarcard_front
+        self.eaadhaar_path = eaadhaar
 
         # Configure logger
         self.config = OCRREngineLogging()
@@ -41,12 +42,16 @@ class IdentifyCard:
                 shutil.move(self.image_path, os.path.join(self.pancard_p2_path, self.file_name))
                 return True
         elif aadhaar_card.check_aadhaar_card():
-            if aadhaar_card.check_aadhaar_front():
+            if aadhaar_card.aadhaar_card_identifiers_eaadhaar:
+                self.logger.info(f"E-Aaadhaar card {self.file_name}")
+                shutil.move(self.image_path, os.path.join(self.eaadhaar_path, self.file_name))
+                return True
+            elif aadhaar_card.check_aadhaar_front():
                 self.logger.info(f"Front-side of Aadhaar card found in {self.file_name}")
                 shutil.move(self.image_path, os.path.join(self.aadhaarcard_front_path, self.file_name))
                 return True
             else:
-                pass
+                return False
         else:
             return False
 
